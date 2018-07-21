@@ -1,31 +1,31 @@
-var StaticSiteGeneratorPlugin = require('../../../');
-var StatsWriterPlugin = require("webpack-stats-plugin").StatsWriterPlugin;
-var ejs = require('ejs');
-var fs = require('fs');
+import {StatsWriterPlugin} from 'webpack-stats-plugin';
+import ejs from 'ejs';
+import fs from 'fs';
 
-var template = ejs.compile(fs.readFileSync(__dirname + '/template.ejs', 'utf-8'))
+import StaticSiteGeneratorPlugin from '../../../src/index';
 
-var paths = [
+const template = ejs.compile(fs.readFileSync(`${__dirname}/template.ejs`, 'utf-8'));
+const paths = [
   '/',
   '/foo',
   '/foo/bar'
 ];
 
 module.exports = {
-  entry: __dirname + '/index.js',
+  entry: `${__dirname}/index.js`,
 
   output: {
     filename: 'index.js',
-    path: __dirname + '/actual-output',
-    libraryTarget: 'umd'
+    libraryTarget: 'umd',
+    path: `${__dirname}/actual-output`
   },
 
   plugins: [
     new StaticSiteGeneratorPlugin({
-      paths: paths,
       locals: {
-        template: template
-      }
+        template
+      },
+      paths
     }),
     new StatsWriterPlugin() // Causes the asset's `size` method to be called
   ]
