@@ -3,11 +3,12 @@
     "styleguidejs/typescript"
   ],
   "rules": {
+    "newline-per-chained-call": 0,
     "import/no-extraneous-dependencies": [
       2,
       {
         "devDependencies": [
-          "**/test/**/*"
+          "**/tests/**/*"
         ],
         "peerDependencies": true
       }

@@ -1,13 +1,17 @@
-import RawSource from 'webpack-sources/lib/RawSource';
 import evaluate from 'eval';
-import path from 'path';
 import cheerio from 'cheerio';
+import isArray from 'lodash/isArray';
+import isEmpty from 'lodash/isEmpty';
+import isPlainObject from 'lodash/isPlainObject';
+import path from 'path';
 import url from 'url';
+import RawSource from 'webpack-sources/lib/RawSource';
+
 import {StaticSitePluginOptions} from './types/main';
 
 const defaultOptions = {
   crawl: true,
-  entry: '/',
+  entry: '',
   globals: [],
   locals: [],
   paths: ['/']
@@ -16,43 +20,64 @@ const defaultOptions = {
 export class StaticSitePlugin {
   options: StaticSitePluginOptions;
 
-  constructor(options: StaticSitePluginOptions) {
-    this.options = {...defaultOptions, ...options};
+  constructor(options: StaticSitePluginOptions = {}) {
+    if(isPlainObject(options)) {
+      this.options = {...defaultOptions, ...options};
+    } else {
+      throw new Error('StaticSitePlugin Error: "options" must be an object');
+    }
   }
 
-  static renderPaths(crawl: boolean, userLocals: string[], paths: string[], render, assets, webpackStats, compilation) {
-    const renderPromises = paths.map((outputPath: string) => {
-      const locals = {assets, path: outputPath, webpackStats};
+  static renderPaths(
+    crawl: boolean,
+    userLocals: string[],
+    paths: string[],
+    render,
+    assets,
+    webpackStats,
+    compilation
+  ): Promise<any> {
+    console.log('paths', paths);
+    let filePaths: any = paths;
 
-      for(const prop in userLocals) {
-        if(userLocals.hasOwnProperty(prop)) {
-          locals[prop] = userLocals[prop];
-        }
+    if(!isArray(filePaths)) {
+      filePaths = [filePaths];
+    }
+
+    const renderPromises: Promise<any>[] = filePaths.map((outputPath: string) => {
+      const locals = {assets, path: outputPath, webpackStats, ...userLocals};
+      console.log('render', render.hasOwnProperty('then'), render.length);
+      let renderPromise: Promise<any>;
+
+      if(render.hasOwnProperty('then')) {
+        renderPromise = render(locals);
+      } else if(render.length < 2) {
+        renderPromise = Promise.resolve(render(locals));
+      } else {
+        renderPromise = new Promise((resolve) => render(locals, resolve));
       }
-
-      const renderPromise = render.length < 2 ? Promise.resolve(render(locals)) : Promise.resolve(render.bind(null, locals));
 
       return renderPromise
         .then((output) => {
-          const outputByPath = typeof output === 'object' ? output : StaticSitePlugin.makeObject(outputPath, output);
-          const assetGenerationPromises = Object.keys(outputByPath).map((key) => {
-            const rawSource = outputByPath[key];
-            const assetName = StaticSitePlugin.pathToAssetName(key);
+          const outputByPath: string = isPlainObject(output) ? output : StaticSitePlugin.makeObject(outputPath, output);
+          const assetGenerationPromises: Promise<any>[] = Object.keys(outputByPath).map((key: string) => {
+            const rawSource: string = outputByPath[key];
+            const assetName: string = StaticSitePlugin.pathToAssetName(key);
 
             if(compilation.assets[assetName]) {
-              return;
+              return Promise.resolve(null);
             }
 
             compilation.assets[assetName] = new RawSource(rawSource);
 
             if(crawl) {
-              const relativePaths = StaticSitePlugin.relativePathsFromHtml({
-                source: rawSource,
-                path: key
-              });
+              const relativePaths = StaticSitePlugin.relativePathsFromHtml({path: key, source: rawSource});
 
-              return StaticSitePlugin.renderPaths(crawl, userLocals, relativePaths, render, assets, webpackStats, compilation);
+              return StaticSitePlugin
+                .renderPaths(crawl, userLocals, relativePaths, render, assets, webpackStats, compilation);
             }
+
+            return Promise.resolve(null);
           });
 
           return Promise.all(assetGenerationPromises);
@@ -65,29 +90,32 @@ export class StaticSitePlugin {
     return Promise.all(renderPromises);
   }
 
-  static findAsset(src, compilation, webpackStatsJson) {
-    if(!src) {
-      const chunkNames = Object.keys(webpackStatsJson.assetsByChunkName);
+  static findAsset(src: string, compilation, webpackStatsJson) {
+    let updatedSrc: string = src;
 
-      src = chunkNames[0];
+    if(isEmpty(updatedSrc)) {
+      const chunkNames = Object.keys(webpackStatsJson.assetsByChunkName);
+      updatedSrc = chunkNames[0];
     }
 
-    const asset = compilation.assets[src];
+    const asset = compilation.assets[updatedSrc];
 
     if(asset) {
       return asset;
     }
 
-    let chunkValue = webpackStatsJson.assetsByChunkName[src];
+    let chunkValue = webpackStatsJson.assetsByChunkName[updatedSrc];
 
     if(!chunkValue) {
       return null;
     }
+
     // Webpack outputs an array for each chunk when using sourcemaps
-    if(chunkValue instanceof Array) {
+    if(isArray(chunkValue)) {
       // Is the main bundle always the first element?
       chunkValue = chunkValue[0];
     }
+
     return compilation.assets[chunkValue];
   }
 
@@ -130,9 +158,9 @@ export class StaticSitePlugin {
 
   static relativePathsFromHtml(options) {
     const {source: html, path: currentPath} = options;
-    const $ = cheerio.load(html);
-    const linkHrefs = $('a[href]').map((i, el) => $(el).attr('href')).get();
-    const iframeSrcs = $('iframe[src]').map((i, el) => $(el).attr('src')).get();
+    const dom = cheerio.load(html);
+    const linkHrefs = dom('a[href]').map((index: number, el) => dom(el).attr('href')).get();
+    const iframeSrcs = dom('iframe[src]').map((index: number, el) => dom(el).attr('src')).get();
 
     return []
       .concat(linkHrefs)
@@ -150,41 +178,38 @@ export class StaticSitePlugin {
 
         return parsed.path.indexOf('/') === 0 ? parsed.path : url.resolve(currentPath, parsed.path);
       })
-      .filter((href) => href != null);
+      .filter((href) => href !== null);
   }
 
   apply(compiler) {
-    compiler.plugin('this-compilation', (compilation) => {
-      compilation.plugin('optimize-assets', (_, done) => {
-        const webpackStats = compilation.getStats();
-        const webpackStatsJson = webpackStats.toJson();
-        const {crawl, entry, globals, locals, paths} = this.options;
+    compiler.hooks.emit.tapPromise('afterCompile', (compilation) => {
+      const webpackStats = compilation.getStats();
+      const webpackStatsJson = webpackStats.toJson();
+      const {crawl, entry, globals, locals, paths} = this.options;
 
-        try {
-          const asset = StaticSitePlugin.findAsset(entry, compilation, webpackStatsJson);
+      try {
+        const asset = StaticSitePlugin.findAsset(entry, compilation, webpackStatsJson);
 
-          if(asset == null) {
-            throw new Error(`Source file not found: "${entry}"`);
-          }
-
-          const assets = StaticSitePlugin.getAssetsFromCompilation(compilation, webpackStatsJson);
-          const source = asset.source();
-          let render = evaluate(source, entry, globals, true);
-
-          if(render.hasOwnProperty('default')) {
-            render = render['default'];
-          }
-
-          if(typeof render !== 'function') {
-            throw new Error(`Export from "${entry}" must be a function that returns an HTML string. Is output.libraryTarget in the configuration set to "umd"?`);
-          }
-
-          StaticSitePlugin.renderPaths(crawl, locals, paths, render, assets, webpackStats, compilation).nodeify(done);
-        } catch(err) {
-          compilation.errors.push(err.stack);
-          done();
+        if(asset === null) {
+          throw new Error(`StaticSitePlugin Error: Source file not found, "${entry}"`);
         }
-      });
+
+        const assets = StaticSitePlugin.getAssetsFromCompilation(compilation, webpackStatsJson);
+        const source = asset.source();
+        let render = evaluate(source, entry, globals, true);
+
+        if(render.hasOwnProperty('default')) {
+          render = render.default;
+        }
+
+        if(typeof render !== 'function') {
+          throw new Error(`StaticSitePlugin Error: Export from "${entry}" must be a function that returns an HTML string. Is output.libraryTarget in the configuration set to "umd"?`);
+        }
+
+        return StaticSitePlugin.renderPaths(crawl, locals, paths, render, assets, webpackStats, compilation);
+      } catch(error) {
+        return Promise.reject(error);
+      }
     });
   }
 }

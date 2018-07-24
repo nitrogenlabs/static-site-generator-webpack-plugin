@@ -21,7 +21,7 @@ Ensure you have webpack installed, e.g. `npm install -g webpack`
 ### webpack.config.js
 
 ```js
-const StaticSiteGeneratorPlugin = require('static-site-generator-webpack-plugin');
+const StaticSitePlugin = require('static-site-generator-webpack-plugin');
 
 module.exports = {
 
@@ -37,7 +37,7 @@ module.exports = {
   },
 
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       paths: [
         '/hello/',
         '/world/'
@@ -120,7 +120,7 @@ module.exports = {
   ...
 
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       crawl: true
     })
   ]
@@ -135,7 +135,7 @@ module.exports = {
   ...
 
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       crawl: true,
       paths: [
         '/',
@@ -156,7 +156,7 @@ module.exports = {
   ...
 
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       paths: [
         '/index.html',
         '/news.html',
@@ -177,7 +177,7 @@ For example, when using Webpack's `require.ensure`, which assumes that `window` 
 module.exports = {
   ...,
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       globals: {
         window: {}
       }
@@ -225,7 +225,7 @@ This plugin defaults to the first chunk found. While this should work in most ca
 module.exports = {
   ...,
   plugins: [
-    new StaticSiteGeneratorPlugin({
+    new StaticSitePlugin({
       entry: 'main'
     })
   ]
@@ -237,14 +237,14 @@ module.exports = {
 Generated files can be compressed with [compression-webpack-plugin](https://github.com/webpack/compression-webpack-plugin), but first ensure that this plugin appears before compression-webpack-plugin in your plugins array:
 
 ```js
-const StaticSiteGeneratorPlugin = require('static-site-generator-webpack-plugin');
+const StaticSitePlugin = require('static-site-generator-webpack-plugin');
 const CompressionPlugin = require('compression-webpack-plugin');
 
 module.exports = {
   ...
 
   plugins: [
-    new StaticSiteGeneratorPlugin(...),
+    new StaticSitePlugin(...),
     new CompressionPlugin(...)
   ]
 };

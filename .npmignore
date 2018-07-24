@@ -1,1 +1,7 @@
-test
+coverage
+node_modules
+tests
+.eslintec
+.travis.yml
+lex.config.js
+tsconfig.json

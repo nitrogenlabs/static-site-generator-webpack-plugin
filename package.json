@@ -4,9 +4,11 @@
   "description": "Minimal, static site generator powered by webpack",
   "main": "lib/index.js",
   "scripts": {
-    "build": "lex build -r",
+    "build": "lex compile -r",
+    "clean": "lex clean",
+    "lint": "eslint ./src --ext .ts,.tsx",
     "test": "lex test",
-    "update": "yarn upgrade-interactive --latest"
+    "update": "lex update -i"
   },
   "repository": {
     "type": "git",
@@ -28,26 +30,20 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
     "eval": "^0.1.0",
+    "lodash": "^4.17.10",
     "url": "^0.11.0",
     "webpack-sources": "^1.1.0"
   },
   "devDependencies": {
-    "async": "^2.0.1",
-    "babel-core": "^6.2.1",
-    "babel-loader": "^7.1.5",
-    "babel-preset-es2015": "^6.1.18",
-    "chai": "^4.1.2",
+    "@types/jest": "^23.3.0",
     "compression-webpack-plugin": "^1.1.11",
-    "coveralls": "^3.0.2",
     "ejs": "^2.3.4",
-    "eslint": "^5.1.0",
-    "eslint-config-styleguidejs": "^0.7.5",
+    "eslint": "^5.2.0",
+    "eslint-config-styleguidejs": "^0.7.6",
     "glob": "^7.0.3",
-    "istanbul": "^0.4.1",
-    "mocha": "^5.2.0",
     "rimraf": "^2.4.4",
     "typescript": "^2.9.2",
-    "webpack": "^4.16.1",
+    "webpack": "^4.16.2",
     "webpack-stats-plugin": "^0.2.1"
   }
 }
